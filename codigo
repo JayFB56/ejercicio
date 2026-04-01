@@ -13,9 +13,11 @@
 long duracion;
 int distancia;
 
-// Velocidad de los motores (0-255)
-int velocidad = 150;
+// Velocidades
+int velocidad = 150;       // avanzar
+int velocidadGiro = 90;    // girar (más lenta)
 
+// ---------------- SETUP ----------------
 void setup() {
   pinMode(ENA, OUTPUT);
   pinMode(ENB, OUTPUT);
@@ -30,16 +32,17 @@ void setup() {
   Serial.begin(9600);
 }
 
+// ---------------- LOOP ----------------
 void loop() {
   distancia = medirDistancia();
 
   Serial.print("Distancia: ");
   Serial.println(distancia);
 
-  // 🚗 SIEMPRE AVANZA
+  // 🚗 AVANZA SIEMPRE
   avanzar();
 
-  // 🚧 SOLO ESQUIVA SI HAY OBSTÁCULO
+  // 🚧 EVITAR OBSTÁCULO
   if (distancia <= 7 && distancia > 0) {
     detener();
     delay(200);
@@ -59,11 +62,13 @@ void loop() {
       Serial.println("Girando derecha");
     }
 
-    delay(500);
+    delay(600); // un poco más de tiempo para girar mejor
   }
 
   delay(100);
 }
+
+// ---------------- FUNCIONES ----------------
 
 // 📏 Medir distancia
 int medirDistancia() {
@@ -80,7 +85,7 @@ int medirDistancia() {
   return distancia;
 }
 
-// 🚗 Avanzar SIEMPRE
+// 🚗 Avanzar
 void avanzar() {
   analogWrite(ENA, velocidad);
   analogWrite(ENB, velocidad);
@@ -104,10 +109,10 @@ void retroceder() {
   digitalWrite(IN4, HIGH);
 }
 
-// ↩️ Izquierda
+// ↩️ Girar izquierda (SUAVE)
 void girarIzquierda() {
-  analogWrite(ENA, velocidad);
-  analogWrite(ENB, velocidad);
+  analogWrite(ENA, 60);                // rueda izquierda más lenta
+  analogWrite(ENB, velocidadGiro);     // derecha más rápida
 
   digitalWrite(IN1, LOW);
   digitalWrite(IN2, HIGH);
@@ -116,10 +121,10 @@ void girarIzquierda() {
   digitalWrite(IN4, LOW);
 }
 
-// ↪️ Derecha
+// ↪️ Girar derecha (SUAVE)
 void girarDerecha() {
-  analogWrite(ENA, velocidad);
-  analogWrite(ENB, velocidad);
+  analogWrite(ENA, velocidadGiro);     // izquierda más rápida
+  analogWrite(ENB, 60);                // derecha más lenta
 
   digitalWrite(IN1, HIGH);
   digitalWrite(IN2, LOW);
