@@ -1,0 +1,141 @@
+// Pines del L298N
+#define ENA 10
+#define IN1 9
+#define IN2 8
+#define IN3 7
+#define IN4 6
+#define ENB 5
+
+// Pines del sensor ultrasónico
+#define TRIG 2
+#define ECHO 3
+  
+long duracion;
+int distancia;
+
+// Velocidad de los motores (0-255)
+int velocidad = 150;
+
+void setup() {
+  pinMode(ENA, OUTPUT);
+  pinMode(ENB, OUTPUT);
+  pinMode(IN1, OUTPUT);
+  pinMode(IN2, OUTPUT);
+  pinMode(IN3, OUTPUT);
+  pinMode(IN4, OUTPUT);
+
+  pinMode(TRIG, OUTPUT);
+  pinMode(ECHO, INPUT);
+
+  Serial.begin(9600);
+}
+
+void loop() {
+  distancia = medirDistancia();
+
+  Serial.print("Distancia: ");
+  Serial.println(distancia);
+
+  // 🚗 SIEMPRE AVANZA
+  avanzar();
+
+  // 🚧 SOLO ESQUIVA SI HAY OBSTÁCULO
+  if (distancia <= 7 && distancia > 0) {
+    detener();
+    delay(200);
+
+    retroceder();
+    delay(400);
+
+    detener();
+    delay(200);
+
+    // Giro aleatorio
+    if (random(0, 2) == 0) {
+      girarIzquierda();
+      Serial.println("Girando izquierda");
+    } else {
+      girarDerecha();
+      Serial.println("Girando derecha");
+    }
+
+    delay(500);
+  }
+
+  delay(100);
+}
+
+// 📏 Medir distancia
+int medirDistancia() {
+  digitalWrite(TRIG, LOW);
+  delayMicroseconds(2);
+
+  digitalWrite(TRIG, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(TRIG, LOW);
+
+  duracion = pulseIn(ECHO, HIGH);
+  int distancia = duracion * 0.034 / 2;
+
+  return distancia;
+}
+
+// 🚗 Avanzar SIEMPRE
+void avanzar() {
+  analogWrite(ENA, velocidad);
+  analogWrite(ENB, velocidad);
+
+  digitalWrite(IN1, HIGH);
+  digitalWrite(IN2, LOW);
+
+  digitalWrite(IN3, HIGH);
+  digitalWrite(IN4, LOW);
+}
+
+// 🔙 Retroceder
+void retroceder() {
+  analogWrite(ENA, velocidad);
+  analogWrite(ENB, velocidad);
+
+  digitalWrite(IN1, LOW);
+  digitalWrite(IN2, HIGH);
+
+  digitalWrite(IN3, LOW);
+  digitalWrite(IN4, HIGH);
+}
+
+// ↩️ Izquierda
+void girarIzquierda() {
+  analogWrite(ENA, velocidad);
+  analogWrite(ENB, velocidad);
+
+  digitalWrite(IN1, LOW);
+  digitalWrite(IN2, HIGH);
+
+  digitalWrite(IN3, HIGH);
+  digitalWrite(IN4, LOW);
+}
+
+// ↪️ Derecha
+void girarDerecha() {
+  analogWrite(ENA, velocidad);
+  analogWrite(ENB, velocidad);
+
+  digitalWrite(IN1, HIGH);
+  digitalWrite(IN2, LOW);
+
+  digitalWrite(IN3, LOW);
+  digitalWrite(IN4, HIGH);
+}
+
+// ⛔ Detener
+void detener() {
+  analogWrite(ENA, 0);
+  analogWrite(ENB, 0);
+
+  digitalWrite(IN1, LOW);
+  digitalWrite(IN2, LOW);
+
+  digitalWrite(IN3, LOW);
+  digitalWrite(IN4, LOW);
+}
