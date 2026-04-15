@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Inventario Móvil</title>
+    <style>
+        /* Variables de color y diseño */
+        :root {
+            --bg-color: #f1f5f9;
+            --card-bg: #ffffff;
+            --text-main: #0f172a;
+            --text-muted: #64748b;
+            --primary: #3b82f6;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --border: #e2e8f0;
+            --radius: 12px;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            padding-bottom: 80px; /* Espacio para no tapar con botones fijos si los hay */
+        }
+
+        /* Resumen Dashboard */
+        .dashboard {
+            background: var(--primary);
+            color: white;
+            padding: 20px;
+            border-bottom-left-radius: 20px;
+            border-bottom-right-radius: 20px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+
+        .dashboard h1 {
+            font-size: 24px;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
+        .stat-box {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 10px;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .stat-box.full-width {
+            grid-column: span 2;
+            background: rgba(255, 255, 255, 0.2);
+            font-size: 1.1em;
+        }
+
+        .stat-box span {
+            display: block;
+            font-size: 12px;
+            opacity: 0.9;
+            margin-bottom: 4px;
+        }
+
+        .stat-box strong {
+            font-size: 18px;
+        }
+
+        /* Controles Globales */
+        .global-actions {
+            display: flex;
+            justify-content: space-between;
+            padding: 0 20px;
+            margin-bottom: 20px;
+            gap: 10px;
+        }
+
+        .btn {
+            border: none;
+            padding: 12px 16px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            width: 100%;
+            text-align: center;
+            transition: opacity 0.2s;
+        }
+
+        .btn:active { opacity: 0.7; }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        .btn-primary { background: var(--primary); color: white; }
+        .btn-success { background: var(--success); color: white; }
+        .btn-warning { background: var(--warning); color: white; }
+        .btn-danger { background: var(--danger); color: white; }
+        .btn-outline { background: transparent; border: 2px solid var(--border); color: var(--text-main); }
+
+        /* Lista de Productos */
+        .product-list {
+            padding: 0 20px;
+            display: grid;
+            gap: 15px;
+        }
+
+        .card {
+            background: var(--card-bg);
+            border-radius: var(--radius);
+            padding: 15px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            border: 1px solid var(--border);
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 10px;
+        }
+
+        .card-header h3 { font-size: 18px; }
+        .edit-btn { background: none; border: none; font-size: 20px; cursor: pointer; }
+
+        .card-details {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            font-size: 14px;
+            margin-bottom: 15px;
+            color: var(--text-muted);
+        }
+
+        .card-details strong { color: var(--text-main); }
+        .highlight-profit { color: var(--success); font-weight: bold; }
+
+        .card-actions {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            margin-bottom: 8px;
+        }
+
+        .card-actions .btn-full { grid-column: span 2; }
+
+        .mini-actions {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            margin-top: 10px;
+            border-top: 1px dashed var(--border);
+            padding-top: 10px;
+        }
+
+        /* Modal */
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .modal-overlay.hidden { display: none; }
+
+        .modal {
+            background: var(--card-bg);
+            width: 90%;
+            max-width: 400px;
+            border-radius: var(--radius);
+            padding: 20px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+        }
+
+        .modal h2 { margin-bottom: 15px; font-size: 20px; }
+
+        .form-group { margin-bottom: 15px; }
+        .form-group label { display: block; font-size: 14px; margin-bottom: 5px; color: var(--text-muted); }
+        .form-group input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-size: 16px;
+        }
+
+        .modal-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="dashboard">
+        <h1>📦 Mi Inventario</h1>
+        <div class="stats-grid">
+            <div class="stat-box full-width">
+                <span>Ganancia Neta Recibida</span>
+                <strong id="dash-ganancia">$0.00</strong>
+            </div>
+            <div class="stat-box">
+                <span>Cobrado (Caja)</span>
+                <strong id="dash-cobrado">$0.00</strong>
+            </div>
+            <div class="stat-box">
+                <span>Pendiente (Por cobrar)</span>
+                <strong id="dash-pendiente">$0.00</strong>
+            </div>
+            <div class="stat-box">
+                <span>Total Invertido</span>
+                <strong id="dash-invertido">$0.00</strong>
+            </div>
+            <div class="stat-box">
+                <span>Pérdida por Daños</span>
+                <strong id="dash-perdida" style="color: #fca5a5;">$0.00</strong>
+            </div>
+            <div class="stat-box full-width" style="background: transparent; border: 1px solid rgba(255,255,255,0.3);">
+                <span>Inventario Restante (Unidades)</span>
+                <strong id="dash-unidades">0</strong>
+            </div>
+        </div>
+    </div>
+
+    <div class="global-actions">
+        <button class="btn btn-primary" onclick="openModal()">+ Nuevo Producto</button>
+        <button class="btn btn-outline" style="width: auto;" onclick="resetData()">🗑️ Reiniciar</button>
+    </div>
+
+    <div id="product-list" class="product-list">
+        </div>
+
+    <div id="modal" class="modal-overlay hidden">
+        <div class="modal">
+            <h2 id="modal-title">Agregar Producto</h2>
+            <form id="product-form">
+                <input type="hidden" id="prod-id">
+                <div class="form-group">
+                    <label>Nombre del Producto</label>
+                    <input type="text" id="prod-name" required placeholder="Ej. Camiseta Negra">
+                </div>
+                <div class="form-group">
+                    <label>Cantidad Disponible (Unidades)</label>
+                    <input type="number" id="prod-qty" required min="0" placeholder="Ej. 10">
+                </div>
+                <div class="form-group">
+                    <label>Costo de Compra (Por unidad $)</label>
+                    <input type="number" id="prod-cost" required min="0" step="0.01" placeholder="Ej. 5.00">
+                </div>
+                <div class="form-group">
+                    <label>Precio de Venta (Por unidad $)</label>
+                    <input type="number" id="prod-price" required min="0" step="0.01" placeholder="Ej. 12.00">
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-outline" onclick="closeModal()">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Guardar</button>
+                </div>
+                <button type="button" class="btn btn-danger" style="margin-top: 15px; display: none;" id="btn-delete" onclick="deleteProduct()">Eliminar Producto</button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        // --- 1. ESTADO Y ALMACENAMIENTO ---
+        let inventory = JSON.parse(localStorage.getItem('app_inventory')) || [];
+
+        function saveData() {
+            localStorage.setItem('app_inventory', JSON.stringify(inventory));
+            render();
+        }
+
+        // --- 2. RENDERIZADO DE INTERFAZ ---
+        function render() {
+            renderDashboard();
+            renderProducts();
+        }
+
+        function renderDashboard() {
+            let invertido = 0, cobrado = 0, pendiente = 0, perdida = 0, gananciaNeta = 0, unidadesRestantes = 0;
+
+            inventory.forEach(p => {
+                // Total de unidades que alguna vez existieron de este producto
+                let totalHistorico = p.quantity + p.soldPaid + p.soldUnpaid + p.damaged;
+                
+                invertido += totalHistorico * p.cost;
+                cobrado += p.soldPaid * p.price;
+                pendiente += p.soldUnpaid * p.price;
+                perdida += p.damaged * p.cost;
+                
+                // Ganancia real = Dinero que ya me pagaron - Costo de ESAS unidades específicas vendidas
+                gananciaNeta += p.soldPaid * (p.price - p.cost);
+                
+                unidadesRestantes += p.quantity;
+            });
+
+            document.getElementById('dash-ganancia').innerText = `$${gananciaNeta.toFixed(2)}`;
+            document.getElementById('dash-cobrado').innerText = `$${cobrado.toFixed(2)}`;
+            document.getElementById('dash-pendiente').innerText = `$${pendiente.toFixed(2)}`;
+            document.getElementById('dash-invertido').innerText = `$${invertido.toFixed(2)}`;
+            document.getElementById('dash-perdida').innerText = `$${perdida.toFixed(2)}`;
+            document.getElementById('dash-unidades').innerText = unidadesRestantes;
+        }
+
+        function renderProducts() {
+            const container = document.getElementById('product-list');
+            container.innerHTML = '';
+
+            if(inventory.length === 0) {
+                container.innerHTML = '<p style="text-align:center; color:gray; padding:20px;">No hay productos. Toca "+ Nuevo Producto" para empezar.</p>';
+                return;
+            }
+
+            inventory.forEach(p => {
+                const isOutOfStock = p.quantity === 0;
+                const gananciaUnidad = p.price - p.cost;
+
+                const card = document.createElement('div');
+                card.className = 'card';
+                card.innerHTML = `
+                    <div class="card-header">
+                        <h3>${p.name}</h3>
+                        <button class="edit-btn" onclick="openModal('${p.id}')">✏️</button>
+                    </div>
+                    
+                    <div class="card-details">
+                        <span>Stock Disponible:</span> <strong style="font-size: 16px; color: ${isOutOfStock ? 'red' : 'var(--text-main)'};">${p.quantity}</strong>
+                        <span>Precio de Venta:</span> <strong>$${p.price.toFixed(2)}</strong>
+                        <span>Costo Unitario:</span> <strong>$${p.cost.toFixed(2)}</strong>
+                        <span>Ganancia /u:</span> <strong class="highlight-profit">$${gananciaUnidad.toFixed(2)}</strong>
+                    </div>
+
+                    <div class="card-actions">
+                        <button class="btn btn-success btn-full" onclick="action('${p.id}', 'sell_paid')" ${isOutOfStock ? 'disabled' : ''}>
+                            💰 Vender (Pagado)
+                        </button>
+                        <button class="btn btn-warning" onclick="action('${p.id}', 'sell_unpaid')" ${isOutOfStock ? 'disabled' : ''}>
+                            ⏳ Vender (Fiado)
+                        </button>
+                        <button class="btn btn-outline" style="color:var(--danger); border-color:var(--danger);" onclick="action('${p.id}', 'damage')" ${isOutOfStock ? 'disabled' : ''}>
+                            🗑️ Dañado
+                        </button>
+                    </div>
+
+                    ${p.soldUnpaid > 0 ? `
+                        <button class="btn btn-primary" style="margin-top: 8px;" onclick="action('${p.id}', 'pay_debt')">
+                            ✅ Me pagaron 1 fiado (Pendientes: ${p.soldUnpaid})
+                        </button>
+                    ` : ''}
+
+                    <div class="mini-actions">
+                        <button class="btn btn-outline" onclick="action('${p.id}', 'add_stock')">➕ 1 Stock</button>
+                        <button class="btn btn-outline" onclick="action('${p.id}', 'remove_stock')" ${isOutOfStock ? 'disabled' : ''}>➖ 1 Stock</button>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        // --- 3. LÓGICA DE NEGOCIO (ACCIONES) ---
+        function action(id, type) {
+            const index = inventory.findIndex(p => p.id === id);
+            if (index === -1) return;
+            const p = inventory[index];
+
+            switch(type) {
+                case 'sell_paid':
+                    if(p.quantity > 0) { p.quantity--; p.soldPaid++; }
+                    break;
+                case 'sell_unpaid':
+                    if(p.quantity > 0) { p.quantity--; p.soldUnpaid++; }
+                    break;
+                case 'damage':
+                    if(p.quantity > 0) {
+                        if(confirm(`¿Marcar 1 unidad de "${p.name}" como dañada/perdida?`)) {
+                            p.quantity--; p.damaged++; 
+                        }
+                    }
+                    break;
+                case 'pay_debt':
+                    if(p.soldUnpaid > 0) { p.soldUnpaid--; p.soldPaid++; }
+                    break;
+                case 'add_stock':
+                    p.quantity++;
+                    break;
+                case 'remove_stock':
+                    if(p.quantity > 0) p.quantity--;
+                    break;
+            }
+            saveData();
+        }
+
+        // --- 4. MANEJO DE MODAL Y FORMULARIOS ---
+        const modal = document.getElementById('modal');
+        const form = document.getElementById('product-form');
+
+        function openModal(id = null) {
+            modal.classList.remove('hidden');
+            if(id) {
+                const p = inventory.find(i => i.id === id);
+                document.getElementById('modal-title').innerText = 'Editar Producto';
+                document.getElementById('prod-id').value = p.id;
+                document.getElementById('prod-name').value = p.name;
+                document.getElementById('prod-qty').value = p.quantity;
+                document.getElementById('prod-cost').value = p.cost;
+                document.getElementById('prod-price').value = p.price;
+                document.getElementById('btn-delete').style.display = 'block';
+            } else {
+                document.getElementById('modal-title').innerText = 'Agregar Producto';
+                form.reset();
+                document.getElementById('prod-id').value = '';
+                document.getElementById('btn-delete').style.display = 'none';
+            }
+        }
+
+        function closeModal() {
+            modal.classList.add('hidden');
+        }
+
+        form.addEventListener('submit', function(e) {
+            e.preventDefault();
+            const id = document.getElementById('prod-id').value;
+            const name = document.getElementById('prod-name').value;
+            const quantity = parseInt(document.getElementById('prod-qty').value);
+            const cost = parseFloat(document.getElementById('prod-cost').value);
+            const price = parseFloat(document.getElementById('prod-price').value);
+
+            if(id) {
+                // Editar
+                const index = inventory.findIndex(p => p.id === id);
+                inventory[index].name = name;
+                inventory[index].quantity = quantity;
+                inventory[index].cost = cost;
+                inventory[index].price = price;
+            } else {
+                // Nuevo
+                inventory.push({
+                    id: Date.now().toString(),
+                    name, quantity, cost, price,
+                    soldPaid: 0, soldUnpaid: 0, damaged: 0
+                });
+            }
+            closeModal();
+            saveData();
+        });
+
+        function deleteProduct() {
+            const id = document.getElementById('prod-id').value;
+            if(confirm('¿Estás seguro de que deseas eliminar este producto por completo? Esto borrará también su historial de ventas.')) {
+                inventory = inventory.filter(p => p.id !== id);
+                closeModal();
+                saveData();
+            }
+        }
+
+        function resetData() {
+            if(confirm('⚠️ PELIGRO: Esto borrará TODOS tus productos y el historial de ventas. ¿Estás absolutamente seguro?')) {
+                inventory = [];
+                saveData();
+            }
+        }
+
+        // --- 5. INICIALIZACIÓN ---
+        render();
+    </script>
+</body>
+</html>
