@@ -1,0 +1,577 @@
+#include <Arduino.h>
+#include <WiFi.h>
+#include <WebServer.h>
+
+// ============================================================
+// Wi-Fi AP
+// ============================================================
+const char* AP_SSID = "ESP32-RobotCar";
+const char* AP_PASS = "12345678";   // mínimo 8 caracteres
+
+WebServer server(80);
+
+// ============================================================
+// Pines
+// ============================================================
+// Sensores IR
+const int sensorIzqPin = 23;
+const int sensorCenPin = 22;
+const int sensorDerPin = 21;
+
+// L298N - Motor A
+const int IN1 = 14;
+const int IN2 = 27;
+const int ENA = 12;
+
+// L298N - Motor B
+const int IN3 = 26;
+const int IN4 = 25;
+const int ENB = 33;
+
+// ============================================================
+// PWM ESP32 Core 3.x
+// ============================================================
+const int PWM_FREQ = 15000;
+const int PWM_RESOLUTION = 8;
+
+// ============================================================
+// Modos
+// ============================================================
+enum Mode {
+  MODE_STOP = 0,
+  MODE_SENSOR_TEST = 1,
+  MODE_MANUAL = 2,
+  MODE_DIRECT = 3,
+  MODE_RAMP = 4,
+  MODE_LINE = 5
+};
+
+enum LineAlgo {
+  ALGO_CLASSIC = 0,
+  ALGO_FUZZY = 1
+};
+
+volatile Mode currentMode = MODE_STOP;
+volatile LineAlgo currentAlgo = ALGO_CLASSIC;
+
+// ============================================================
+// Configuración general
+// ============================================================
+bool sensorActiveHigh = true;
+
+int baseLineSpeed = 160;
+int maxLineAdjust = 120;
+float classicGain = 55.0f;
+
+int manualLeftSpeed = 160;
+int manualRightSpeed = 160;
+bool manualLeftForward = true;
+bool manualRightForward = true;
+
+int directIN1 = 0;
+int directIN2 = 0;
+int directIN3 = 0;
+int directIN4 = 0;
+int directENA = 180;
+int directENB = 180;
+
+bool rampRunning = false;
+int rampMin = 0;
+int rampMax = 220;
+int rampStep = 4;
+unsigned long rampPeriodMs = 20;
+int rampCurrent = 0;
+int rampDir = 1;
+unsigned long lastRampMs = 0;
+
+float lastError = 0.0f;
+float currentError = 0.0f;
+float currentAdjust = 0.0f;
+
+int sensorL = 0;
+int sensorC = 0;
+int sensorR = 0;
+
+int lastLeftCmd = 0;
+int lastRightCmd = 0;
+
+unsigned long lastSerialMs = 0;
+
+// ============================================================
+// Difuso
+// ============================================================
+struct FuzzyTriangle {
+  float a, b, c;
+
+  float calculate(float x) const {
+    if (x <= a || x >= c) return 0.0f;
+    if (x == b) return 1.0f;
+    if (x < b) return (x - a) / (b - a);
+    return (c - x) / (c - b);
+  }
+};
+
+FuzzyTriangle negGrande = {-2.5f, -2.0f, -1.2f};
+FuzzyTriangle negPeque  = {-2.0f, -1.0f,  0.0f};
+FuzzyTriangle cero      = {-0.5f,  0.0f,  0.5f};
+FuzzyTriangle posPeque  = { 0.0f,  1.0f,  2.0f};
+FuzzyTriangle posGrande = { 1.2f,  2.0f,  2.5f};
+
+// ============================================================
+// HTML
+// ============================================================
+const char INDEX_HTML[] PROGMEM = R"rawliteral(
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>ESP32 Robot Car</title>
+<style>
+  :root{
+    --bg:#0b1220;
+    --card:#121b2e;
+    --card2:#17223a;
+    --text:#eef3ff;
+    --muted:#9fb0d0;
+    --line:#2a3a5f;
+    --ok:#39d98a;
+    --warn:#ffd166;
+    --bad:#ff5c7a;
+    --accent:#6ea8fe;
+    --accent2:#8a7dff;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0;
+    font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
+    background:linear-gradient(180deg,#09101d,#0b1220 35%,#08101d);
+    color:var(--text);
+  }
+  .wrap{max-width:1200px;margin:0 auto;padding:16px}
+  .topbar{
+    display:flex;gap:12px;flex-wrap:wrap;align-items:center;justify-content:space-between;
+    margin-bottom:14px;
+  }
+  .title h1{margin:0;font-size:24px}
+  .title p{margin:4px 0 0;color:var(--muted)}
+  .pill{
+    display:inline-flex;align-items:center;gap:8px;
+    padding:8px 12px;border:1px solid var(--line);border-radius:999px;
+    background:rgba(255,255,255,.03);color:var(--text);
+  }
+  .grid{
+    display:grid;
+    grid-template-columns:repeat(12,1fr);
+    gap:12px;
+  }
+  .card{
+    background:linear-gradient(180deg,var(--card),var(--card2));
+    border:1px solid var(--line);
+    border-radius:18px;
+    padding:14px;
+    box-shadow:0 10px 30px rgba(0,0,0,.22);
+  }
+  .span-12{grid-column:span 12}
+  .span-8{grid-column:span 8}
+  .span-6{grid-column:span 6}
+  .span-4{grid-column:span 4}
+  .span-3{grid-column:span 3}
+  @media (max-width:900px){
+    .span-8,.span-6,.span-4,.span-3{grid-column:span 12}
+  }
+  .section-title{font-size:16px;margin:0 0 10px;color:#fff}
+  .sub{font-size:13px;color:var(--muted);margin-top:-6px;margin-bottom:12px}
+  .btnrow{display:flex;flex-wrap:wrap;gap:8px}
+  button,.btn{
+    border:none;cursor:pointer;border-radius:12px;
+    padding:10px 14px;font-weight:700;color:#fff;
+    background:#2a3a5f;
+  }
+  button:hover,.btn:hover{filter:brightness(1.1)}
+  .btn-accent{background:linear-gradient(135deg,var(--accent),var(--accent2))}
+  .btn-good{background:linear-gradient(135deg,#2ccf83,#1ea36a)}
+  .btn-bad{background:linear-gradient(135deg,#ff6b88,#e63f62)}
+  .btn-ghost{background:#24324f}
+  .mode-btn.active{outline:2px solid var(--accent)}
+  .danger{
+    width:100%;padding:14px 16px;font-size:18px;border-radius:16px;
+    background:linear-gradient(135deg,#ff5c7a,#d93655);
+  }
+  .row{display:grid;grid-template-columns:repeat(12,1fr);gap:10px}
+  .field{grid-column:span 6}
+  .field4{grid-column:span 4}
+  .field12{grid-column:span 12}
+  @media (max-width:700px){.field,.field4{grid-column:span 12}}
+  label{display:block;font-size:13px;color:var(--muted);margin-bottom:6px}
+  input[type="range"]{width:100%}
+  input[type="number"], select{
+    width:100%;
+    background:#0f1728;color:#fff;border:1px solid var(--line);
+    border-radius:12px;padding:10px 12px;outline:none;
+  }
+  .small{font-size:12px;color:var(--muted)}
+  .sensorBox{
+    display:grid;grid-template-columns:repeat(3,1fr);gap:10px;
+  }
+  .sensor{
+    border:1px solid var(--line);border-radius:16px;padding:14px;text-align:center;
+    background:rgba(255,255,255,.03);
+  }
+  .led{
+    width:22px;height:22px;border-radius:50%;
+    margin:0 auto 10px;background:#31415f;box-shadow:inset 0 0 10px rgba(255,255,255,.08);
+  }
+  .led.on{background:var(--ok);box-shadow:0 0 12px rgba(57,217,138,.7)}
+  .value{font-size:28px;font-weight:800}
+  .metric{
+    display:flex;justify-content:space-between;align-items:center;
+    padding:10px 12px;border:1px solid var(--line);border-radius:12px;
+    margin-bottom:8px;background:rgba(255,255,255,.03);
+  }
+  .metric span:last-child{font-weight:800}
+  .switch{
+    display:flex;align-items:center;justify-content:space-between;gap:12px;
+    padding:10px 12px;border:1px solid var(--line);border-radius:12px;
+    margin-top:8px;background:rgba(255,255,255,.03);
+  }
+  .switch input{transform:scale(1.2)}
+  #console{
+    height:220px;overflow:auto;background:#09101d;color:#d6e2ff;
+    border:1px solid var(--line);border-radius:14px;padding:10px;
+    font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+    font-size:12px;white-space:pre-wrap;
+  }
+  .panel{display:none}
+  .panel.active{display:block}
+  .status-ok{color:var(--ok)}
+  .status-bad{color:var(--bad)}
+  .status-warn{color:var(--warn)}
+  .mini{
+    display:grid;grid-template-columns:repeat(4,1fr);gap:8px;
+  }
+  .mini .metric{margin-bottom:0}
+  @media (max-width:800px){.mini{grid-template-columns:repeat(2,1fr)}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="topbar">
+    <div class="title">
+      <h1>ESP32 Robot Car Dashboard</h1>
+      <p>Control en tiempo real para sensores IR, L298N y modos de prueba</p>
+    </div>
+    <div class="pill">
+      <span>AP:</span><strong id="wifiIp">192.168.4.1</strong>
+      <span> | Clientes:</span><strong id="wifiClients">0</strong>
+    </div>
+  </div>
+
+  <div class="grid">
+    <div class="card span-12">
+      <div class="btnrow" id="modeButtons">
+        <button class="mode-btn btn-bad" data-mode="STOP">STOP</button>
+        <button class="mode-btn btn-ghost" data-mode="SENSOR">SENSORES</button>
+        <button class="mode-btn btn-ghost" data-mode="MANUAL">MANUAL</button>
+        <button class="mode-btn btn-ghost" data-mode="DIRECT">DIRECTO</button>
+        <button class="mode-btn btn-ghost" data-mode="RAMP">RAMPA</button>
+        <button class="mode-btn btn-accent" data-mode="LINE">LINEA</button>
+      </div>
+      <div style="margin-top:12px" class="btnrow">
+        <button class="danger" id="emergencyStop">EMERGENCIA / STOP</button>
+      </div>
+      <div style="margin-top:10px" class="small">Modo actual: <strong id="modeLabel">STOP</strong> | Algoritmo: <strong id="algoLabel">CLASSIC</strong> | Estado: <strong id="stateLabel" class="status-warn">Detenido</strong></div>
+    </div>
+
+    <div class="card span-4">
+      <h3 class="section-title">Sensores IR</h3>
+      <div class="sensorBox">
+        <div class="sensor"><div class="led" id="ledL"></div><div>Izq</div><div class="value" id="sL">0</div></div>
+        <div class="sensor"><div class="led" id="ledC"></div><div>Cen</div><div class="value" id="sC">0</div></div>
+        <div class="sensor"><div class="led" id="ledR"></div><div>Der</div><div class="value" id="sR">0</div></div>
+      </div>
+      <div class="mini" style="margin-top:10px">
+        <div class="metric"><span>Error</span><span id="errorVal">0.00</span></div>
+        <div class="metric"><span>Ajuste</span><span id="adjustVal">0.00</span></div>
+        <div class="metric"><span>Izq</span><span id="cmdL">0</span></div>
+        <div class="metric"><span>Der</span><span id="cmdR">0</span></div>
+      </div>
+    </div>
+
+    <div class="card span-4 panel" id="panelManual">
+      <h3 class="section-title">Modo manual de motores</h3>
+      <div class="row">
+        <div class="field">
+          <label>Motor Izquierdo dirección</label>
+          <select id="manualLeftDir">
+            <option value="1">Adelante</option>
+            <option value="0">Atrás</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Motor Derecho dirección</label>
+          <select id="manualRightDir">
+            <option value="1">Adelante</option>
+            <option value="0">Atrás</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Velocidad Izquierda</label>
+          <input type="range" min="0" max="255" value="160" id="manualLeftSpeed">
+          <div class="small">Valor: <span id="manualLeftSpeedVal">160</span></div>
+        </div>
+        <div class="field">
+          <label>Velocidad Derecha</label>
+          <input type="range" min="0" max="255" value="160" id="manualRightSpeed">
+          <div class="small">Valor: <span id="manualRightSpeedVal">160</span></div>
+        </div>
+        <div class="field12 btnrow">
+          <button class="btn-good" id="applyManual">Aplicar manual</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="card span-4 panel" id="panelDirect">
+      <h3 class="section-title">Control directo L298N</h3>
+      <div class="sub">Activa pines manualmente y envía el estado directo al driver.</div>
+      <div class="switch"><span>IN1</span><input type="checkbox" id="in1"></div>
+      <div class="switch"><span>IN2</span><input type="checkbox" id="in2"></div>
+      <div class="switch"><span>IN3</span><input type="checkbox" id="in3"></div>
+      <div class="switch"><span>IN4</span><input type="checkbox" id="in4"></div>
+
+      <div style="margin-top:10px">
+        <label>ENA (PWM)</label>
+        <input type="range" min="0" max="255" value="180" id="ena">
+        <div class="small">Valor: <span id="enaVal">180</span></div>
+      </div>
+
+      <div style="margin-top:10px">
+        <label>ENB (PWM)</label>
+        <input type="range" min="0" max="255" value="180" id="enb">
+        <div class="small">Valor: <span id="enbVal">180</span></div>
+      </div>
+
+      <div class="btnrow" style="margin-top:12px">
+        <button class="btn-good" id="applyDirect">Enviar directos</button>
+      </div>
+    </div>
+
+    <div class="card span-4 panel" id="panelRamp">
+      <h3 class="section-title">Prueba de rampa</h3>
+      <div class="row">
+        <div class="field">
+          <label>Min</label>
+          <input type="number" id="rampMin" min="0" max="255" value="0">
+        </div>
+        <div class="field">
+          <label>Max</label>
+          <input type="number" id="rampMax" min="0" max="255" value="220">
+        </div>
+        <div class="field">
+          <label>Step</label>
+          <input type="number" id="rampStep" min="1" max="50" value="4">
+        </div>
+        <div class="field">
+          <label>Periodo ms</label>
+          <input type="number" id="rampPeriod" min="5" max="1000" value="20">
+        </div>
+        <div class="field12 btnrow">
+          <button class="btn-good" id="startRamp">Iniciar rampa</button>
+          <button class="btn-bad" id="stopRamp">Detener rampa</button>
+        </div>
+      </div>
+      <div class="small">Rampa actual: <strong id="rampNow">0</strong></div>
+    </div>
+
+    <div class="card span-4 panel" id="panelLine">
+      <h3 class="section-title">Seguidor de línea</h3>
+      <div class="row">
+        <div class="field">
+          <label>Algoritmo</label>
+          <select id="lineAlgo">
+            <option value="classic">Clásico</option>
+            <option value="fuzzy">Difuso</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Velocidad base</label>
+          <input type="range" min="0" max="255" value="160" id="baseLineSpeed">
+          <div class="small">Valor: <span id="baseLineSpeedVal">160</span></div>
+        </div>
+        <div class="field">
+          <label>Ajuste máximo</label>
+          <input type="range" min="0" max="255" value="120" id="maxLineAdjust">
+          <div class="small">Valor: <span id="maxLineAdjustVal">120</span></div>
+        </div>
+        <div class="field">
+          <label>Ganancia clásico</label>
+          <input type="range" min="1" max="120" value="55" id="classicGain">
+          <div class="small">Valor: <span id="classicGainVal">55</span></div>
+        </div>
+        <div class="field12">
+          <div class="switch"><span>IR activo en HIGH</span><input type="checkbox" id="sensorActiveHigh" checked></div>
+        </div>
+        <div class="field12 btnrow">
+          <button class="btn-accent" id="applyLine">Aplicar línea</button>
+        </div>
+      </div>
+      <div class="small">Nota: en centrado, con izquierda=1, centro=0, derecha=1, el carro sigue avanzando recto.</div>
+    </div>
+
+    <div class="card span-8">
+      <h3 class="section-title">Telemetría en vivo</h3>
+      <div class="mini">
+        <div class="metric"><span>Modo</span><span id="teleMode">STOP</span></div>
+        <div class="metric"><span>Algoritmo</span><span id="teleAlgo">CLASSIC</span></div>
+        <div class="metric"><span>Clientes</span><span id="teleClients">0</span></div>
+        <div class="metric"><span>IP</span><span id="teleIp">192.168.4.1</span></div>
+      </div>
+      <div class="mini" style="margin-top:10px">
+        <div class="metric"><span>ENA</span><span id="teleEna">0</span></div>
+        <div class="metric"><span>ENB</span><span id="teleEnb">0</span></div>
+        <div class="metric"><span>Rampa</span><span id="teleRamp">OFF</span></div>
+        <div class="metric"><span>Sensor</span><span id="teleSensor">HIGH</span></div>
+      </div>
+    </div>
+
+    <div class="card span-4">
+      <h3 class="section-title">Consola</h3>
+      <div id="console"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+
+function log(msg) {
+  const c = $("console");
+  const t = new Date().toLocaleTimeString();
+  c.textContent += `[${t}] ${msg}\n`;
+  c.scrollTop = c.scrollHeight;
+}
+
+async function api(url) {
+  const r = await fetch(url, {cache: "no-store"});
+  const txt = await r.text();
+  return txt;
+}
+
+function showPanel(mode) {
+  const map = {
+    STOP: null,
+    SENSOR: null,
+    MANUAL: "panelManual",
+    DIRECT: "panelDirect",
+    RAMP: "panelRamp",
+    LINE: "panelLine"
+  };
+  document.querySelectorAll(".panel").forEach(p => p.classList.remove("active"));
+  if (map[mode]) $(map[mode]).classList.add("active");
+
+  document.querySelectorAll(".mode-btn").forEach(b => {
+    b.classList.toggle("active", b.dataset.mode === mode);
+  });
+}
+
+function setLed(id, v) {
+  const e = $(id);
+  e.classList.toggle("on", Number(v) === 1);
+}
+
+function safeNum(v, def=0) {
+  const n = Number(v);
+  return Number.isFinite(n) ? n : def;
+}
+
+async function refreshState() {
+  try {
+    const r = await fetch("/api/state", {cache: "no-store"});
+    const s = await r.json();
+
+    $("wifiIp").textContent = s.wifi.ip;
+    $("wifiClients").textContent = s.wifi.clients;
+    $("teleIp").textContent = s.wifi.ip;
+    $("teleClients").textContent = s.wifi.clients;
+
+    $("modeLabel").textContent = s.mode;
+    $("algoLabel").textContent = s.algo;
+    $("teleMode").textContent = s.mode;
+    $("teleAlgo").textContent = s.algo;
+    $("teleEna").textContent = s.direct.ena;
+    $("teleEnb").textContent = s.direct.enb;
+    $("teleRamp").textContent = s.ramp.running ? "ON" : "OFF";
+    $("teleSensor").textContent = s.sensorActiveHigh ? "HIGH" : "LOW";
+
+    $("sL").textContent = s.sensors.l;
+    $("sC").textContent = s.sensors.c;
+    $("sR").textContent = s.sensors.r;
+
+    setLed("ledL", s.sensors.l);
+    setLed("ledC", s.sensors.c);
+    setLed("ledR", s.sensors.r);
+
+    $("errorVal").textContent = Number(s.error).toFixed(2);
+    $("adjustVal").textContent = Number(s.adjust).toFixed(2);
+    $("cmdL").textContent = s.motors.left;
+    $("cmdR").textContent = s.motors.right;
+    $("rampNow").textContent = s.ramp.current;
+
+    $("baseLineSpeed").value = s.line.baseSpeed;
+    $("maxLineAdjust").value = s.line.maxAdjust;
+    $("classicGain").value = s.line.classicGain;
+    $("sensorActiveHigh").checked = !!s.sensorActiveHigh;
+    $("lineAlgo").value = (s.algo === "FUZZY") ? "fuzzy" : "classic";
+
+    $("baseLineSpeedVal").textContent = s.line.baseSpeed;
+    $("maxLineAdjustVal").textContent = s.line.maxAdjust;
+    $("classicGainVal").textContent = s.line.classicGain;
+
+    $("manualLeftSpeed").value = s.manual.leftSpeed;
+    $("manualRightSpeed").value = s.manual.rightSpeed;
+    $("manualLeftSpeedVal").textContent = s.manual.leftSpeed;
+    $("manualRightSpeedVal").textContent = s.manual.rightSpeed;
+    $("manualLeftDir").value = s.manual.leftForward ? "1" : "0";
+    $("manualRightDir").value = s.manual.rightForward ? "1" : "0";
+
+    $("in1").checked = !!s.direct.in1;
+    $("in2").checked = !!s.direct.in2;
+    $("in3").checked = !!s.direct.in3;
+    $("in4").checked = !!s.direct.in4;
+    $("ena").value = s.direct.ena;
+    $("enb").value = s.direct.enb;
+    $("enaVal").textContent = s.direct.ena;
+    $("enbVal").textContent = s.direct.enb;
+
+    $("rampMin").value = s.ramp.min;
+    $("rampMax").value = s.ramp.max;
+    $("rampStep").value = s.ramp.step;
+    $("rampPeriod").value = s.ramp.period;
+
+    $("stateLabel").textContent = s.stateText;
+    $("stateLabel").className = s.stateClass;
+
+    showPanel(s.mode);
+  } catch (e) {
+    $("stateLabel").textContent = "Sin conexión";
+    $("stateLabel").className = "status-bad";
+  }
+}
+
+document.querySelectorAll(".mode-btn").forEach(btn => {
+  btn.addEventListener("click", async () => {
+    const mode = btn.dataset.mode;
+    await api(`/api/mode?m=${encodeURIComponent(mode)}`);
+    log(`Modo -> ${mode}`);
+    showPanel(mode);
+  });
+});
+
+$("emergencyStop").addEventListener("click", async () => {
+  await api("/api/stop");
+  log("STOP de emergencia");
+  showPanel("STOP");
+});
+
+$("manualLeftSpeed").addEventListener("input", () => $("manualLeftSpeedVal").textContent = $("manualLeftSpeed").value);
+$("manualRightSpeed").addEventListener("input", () => $("manualRightSpeedVa
