@@ -13,8 +13,11 @@
             --primary: #3182ce;
             --primary-hover: #2b6cb0;
             --success: #38a169;
+            --success-hover: #2f855a;
             --danger: #e53e3e;
-            --warning: #dd6b20;
+            --danger-hover: #c53030;
+            --report: #4a5568;
+            --report-hover: #2d3748;
             --border: #e2e8f0;
         }
 
@@ -47,6 +50,10 @@
             font-size: 1.4rem;
             color: var(--text-main);
             margin-bottom: 8px;
+        }
+
+        .print-header {
+            display: none;
         }
 
         .summary-box {
@@ -121,19 +128,25 @@
         }
 
         .btn-primary { background-color: var(--primary); color: white; }
-        .btn-warning { background-color: var(--warning); color: white; }
+        .btn-primary:hover { background-color: var(--primary-hover); }
+
+        .btn-report { background-color: var(--report); color: white; margin-bottom: 16px; }
+        .btn-report:hover { background-color: var(--report-hover); }
 
         .btn-action {
             width: auto;
             min-width: 44px;
             height: 38px;
-            padding: 0 10px;
+            padding: 0 12px;
             border-radius: 6px;
             font-size: 0.8rem;
+            font-weight: 600;
         }
 
-        .btn-edit { background-color: var(--border); color: var(--text-main); }
+        .btn-paid { background-color: var(--success); color: white; }
+        .btn-paid:hover { background-color: var(--success-hover); }
         .btn-delete { background-color: var(--danger); color: white; }
+        .btn-delete:hover { background-color: var(--danger-hover); }
 
         .list-title {
             font-size: 1rem;
@@ -194,6 +207,61 @@
             font-style: italic;
             font-size: 0.9rem;
         }
+
+        /* --- ESTILOS EXCLUSIVOS PARA EL REPORTE PDF / IMPRESIÓN --- */
+        @media print {
+            body {
+                background-color: #ffffff;
+                color: #000000;
+                padding: 0;
+            }
+            .container {
+                max-width: 100%;
+            }
+            h1, #paymentForm, .btn, .item-actions {
+                display: none !important;
+            }
+            .print-header {
+                display: block;
+                text-align: center;
+                margin-bottom: 24px;
+                border-bottom: 3px double #000000;
+                padding-bottom: 8px;
+            }
+            .print-header h2 {
+                font-size: 1.4rem;
+                margin-bottom: 4px;
+            }
+            .print-header p {
+                font-size: 0.85rem;
+                color: #444444;
+            }
+            .card {
+                box-shadow: none !important;
+                border: none !important;
+                padding: 0 !important;
+                margin-bottom: 24px;
+            }
+            .list-title {
+                color: #000000;
+                border-bottom: 2px solid #000000;
+                font-size: 1.1rem;
+                margin-top: 12px;
+            }
+            .item-row {
+                border-bottom: 1px solid #bcbcbc;
+                page-break-inside: avoid;
+            }
+            .badge {
+                box-shadow: none;
+                border: 1px solid #000000;
+            }
+            .badge-danger { background-color: #fff5f5 !important; color: #c53030 !important; border-color: #feb2b2; }
+            .badge-success { background-color: #f0fff4 !important; color: #22543d !important; border-color: #9ae6b4; }
+            .empty-state {
+                color: #555555;
+            }
+        }
     </style>
 </head>
 <body>
@@ -207,9 +275,15 @@
             </div>
         </header>
 
-        <div class="card">
+        <div class="print-header">
+            <h2>REPORTE DE CONTROL DE PAGOS</h2>
+            <p id="printDate"></p>
+        </div>
+
+        <button class="btn btn-report" onclick="generateReport()">📋 Generar Reporte PDF</button>
+
+        <div class="card" id="paymentFormCard">
             <form id="paymentForm">
-                <input type="hidden" id="editIndex" value="-1">
                 <div class="form-group">
                     <label for="personName">Nombre de la Persona</label>
                     <input type="text" id="personName" placeholder="Ej. Juan Pérez" required>
@@ -249,13 +323,12 @@
         const activityNameInput = document.getElementById('activityName');
         const totalValueInput = document.getElementById('totalValue');
         const paidValueInput = document.getElementById('paidValue');
-        const editIndexInput = document.getElementById('editIndex');
-        const submitBtn = document.getElementById('submitBtn');
         
         const pendingList = document.getElementById('pendingList');
         const completedList = document.getElementById('completedList');
         const totalOwedDisplay = document.getElementById('totalOwed');
         const totalCollectedDisplay = document.getElementById('totalCollected');
+        const printDateDisplay = document.getElementById('printDate');
 
         function saveAndRender() {
             localStorage.setItem('payment_records', JSON.stringify(records));
@@ -297,7 +370,7 @@
                             </div>
                         </div>
                         <div class="item-actions">
-                            <button class="btn btn-action btn-edit" onclick="editRecord(${index})">Editar</button>
+                            <button class="btn btn-action btn-paid" onclick="markAsPaid(${index})">Pagado</button>
                             <button class="btn btn-action btn-delete" onclick="deleteRecord(${index})">Borrar</button>
                         </div>
                     `;
@@ -313,7 +386,6 @@
                             </div>
                         </div>
                         <div class="item-actions">
-                            <button class="btn btn-action btn-edit" onclick="editRecord(${index})">Editar</button>
                             <button class="btn btn-action btn-delete" onclick="deleteRecord(${index})">Borrar</button>
                         </div>
                     `;
@@ -335,49 +407,34 @@
             const activity = activityNameInput.value.trim(); 
             const total = parseFloat(totalValueInput.value);
             const paid = paidValueInput.value.trim() === "" ? 0 : parseFloat(paidValueInput.value);
-            const editIndex = parseInt(editIndexInput.value);
 
             if (person && !isNaN(total)) {
                 const data = { person, activity, total, paid };
-
-                if (editIndex === -1) {
-                    records.push(data);
-                } else {
-                    records[editIndex] = data;
-                    editIndexInput.value = "-1";
-                    submitBtn.textContent = "Agregar Registro";
-                    submitBtn.className = "btn btn-primary";
-                }
-                
+                records.push(data);
                 form.reset();
                 saveAndRender();
             }
         });
 
-        window.editRecord = function(index) {
-            const record = records[index];
-            personNameInput.value = record.person;
-            activityNameInput.value = record.activity;
-            totalValueInput.value = record.total;
-            paidValueInput.value = record.paid;
-            
-            editIndexInput.value = index;
-            submitBtn.textContent = "Guardar Cambios";
-            submitBtn.className = "btn btn-warning";
-            window.scrollTo({ top: 0, behavior: 'smooth' });
+        window.markAsPaid = function(index) {
+            records[index].paid = records[index].total;
+            saveAndRender();
         };
 
         window.deleteRecord = function(index) {
             if (confirm('¿Seguro que deseas eliminar este registro?')) {
                 records.splice(index, 1);
-                if (editIndexInput.value == index) {
-                    editIndexInput.value = "-1";
-                    submitBtn.textContent = "Agregar Registro";
-                    submitBtn.className = "btn btn-primary";
-                    form.reset();
-                }
                 saveAndRender();
             }
+        };
+
+        window.generateReport = function() {
+            // Actualiza la fecha actual de forma legible en el encabezado del reporte
+            const now = new Date();
+            printDateDisplay.textContent = `Generado el: ${now.toLocaleDateString()} a las ${now.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}`;
+            
+            // Lanza la herramienta nativa del teléfono para imprimir / Guardar PDF
+            window.print();
         };
 
         render();
