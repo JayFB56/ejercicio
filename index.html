@@ -2,21 +2,21 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Inventario Móvil</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Control de Actividades por Cobrar</title>
     <style>
-        /* Variables de color y diseño */
         :root {
-            --bg-color: #f1f5f9;
+            --bg-color: #f4f6f9;
             --card-bg: #ffffff;
-            --text-main: #0f172a;
-            --text-muted: #64748b;
-            --primary: #3b82f6;
-            --success: #10b981;
-            --warning: #f59e0b;
-            --danger: #ef4444;
+            --text-main: #2d3748;
+            --text-muted: #718096;
+            --primary: #3182ce;
+            --primary-hover: #2b6cb0;
+            --success: #38a169;
+            --danger: #e53e3e;
+            --danger-hover: #c53030;
+            --warning: #dd6b20;
             --border: #e2e8f0;
-            --radius: 12px;
         }
 
         * {
@@ -29,455 +29,301 @@
         body {
             background-color: var(--bg-color);
             color: var(--text-main);
-            padding-bottom: 80px; /* Espacio para no tapar con botones fijos si los hay */
+            padding: 16px;
+            display: flex;
+            justify-content: center;
         }
 
-        /* Resumen Dashboard */
-        .dashboard {
-            background: var(--primary);
-            color: white;
-            padding: 20px;
-            border-bottom-left-radius: 20px;
-            border-bottom-right-radius: 20px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        .container {
+            width: 100%;
+            max-width: 500px;
+            margin-top: 8px;
+        }
+
+        header {
             margin-bottom: 20px;
-        }
-
-        .dashboard h1 {
-            font-size: 24px;
-            margin-bottom: 15px;
             text-align: center;
         }
 
-        .stats-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 10px;
-        }
-
-        .stat-box {
-            background: rgba(255, 255, 255, 0.1);
-            padding: 10px;
-            border-radius: 8px;
-            text-align: center;
-        }
-
-        .stat-box.full-width {
-            grid-column: span 2;
-            background: rgba(255, 255, 255, 0.2);
-            font-size: 1.1em;
-        }
-
-        .stat-box span {
-            display: block;
-            font-size: 12px;
-            opacity: 0.9;
+        h1 {
+            font-size: 1.5rem;
+            color: var(--text-main);
             margin-bottom: 4px;
         }
 
-        .stat-box strong {
-            font-size: 18px;
-        }
-
-        /* Controles Globales */
-        .global-actions {
-            display: flex;
-            justify-content: space-between;
-            padding: 0 20px;
-            margin-bottom: 20px;
-            gap: 10px;
-        }
-
-        .btn {
-            border: none;
-            padding: 12px 16px;
-            border-radius: 8px;
-            font-size: 16px;
-            font-weight: 600;
-            cursor: pointer;
-            width: 100%;
-            text-align: center;
-            transition: opacity 0.2s;
-        }
-
-        .btn:active { opacity: 0.7; }
-        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
-
-        .btn-primary { background: var(--primary); color: white; }
-        .btn-success { background: var(--success); color: white; }
-        .btn-warning { background: var(--warning); color: white; }
-        .btn-danger { background: var(--danger); color: white; }
-        .btn-outline { background: transparent; border: 2px solid var(--border); color: var(--text-main); }
-
-        /* Lista de Productos */
-        .product-list {
-            padding: 0 20px;
-            display: grid;
-            gap: 15px;
+        .total-badge {
+            background-color: var(--primary);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-weight: bold;
+            display: inline-block;
+            margin-top: 8px;
+            font-size: 1.1rem;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
 
         .card {
             background: var(--card-bg);
-            border-radius: var(--radius);
-            padding: 15px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            border-radius: 12px;
+            padding: 16px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
             border: 1px solid var(--border);
+            margin-bottom: 16px;
         }
 
-        .card-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 10px;
-            border-bottom: 1px solid var(--border);
-            padding-bottom: 10px;
+        .form-group {
+            margin-bottom: 12px;
         }
 
-        .card-header h3 { font-size: 18px; }
-        .edit-btn { background: none; border: none; font-size: 20px; cursor: pointer; }
-
-        .card-details {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 8px;
-            font-size: 14px;
-            margin-bottom: 15px;
+        label {
+            display: block;
+            margin-bottom: 6px;
+            font-size: 0.9rem;
+            font-weight: 600;
             color: var(--text-muted);
         }
 
-        .card-details strong { color: var(--text-main); }
-        .highlight-profit { color: var(--success); font-weight: bold; }
-
-        .card-actions {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 8px;
-            margin-bottom: 8px;
+        input[type="text"], input[type="number"] {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid var(--border);
+            border-radius: 8px;
+            font-size: 1rem;
+            outline: none;
+            transition: border-color 0.2s;
+            -webkit-appearance: none;
         }
 
-        .card-actions .btn-full { grid-column: span 2; }
-
-        .mini-actions {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 8px;
-            margin-top: 10px;
-            border-top: 1px dashed var(--border);
-            padding-top: 10px;
+        input[type="text"]:focus, input[type="number"]:focus {
+            border-color: var(--primary);
         }
 
-        /* Modal */
-        .modal-overlay {
-            position: fixed;
-            top: 0; left: 0; right: 0; bottom: 0;
-            background: rgba(0,0,0,0.5);
+        .btn {
+            width: 100%;
+            padding: 14px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background-color 0.2s;
             display: flex;
             justify-content: center;
             align-items: center;
-            z-index: 1000;
+            gap: 8px;
+            min-height: 48px; /* Accesibilidad táctil móvil */
         }
 
-        .modal-overlay.hidden { display: none; }
-
-        .modal {
-            background: var(--card-bg);
-            width: 90%;
-            max-width: 400px;
-            border-radius: var(--radius);
-            padding: 20px;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+        .btn-primary {
+            background-color: var(--primary);
+            color: white;
         }
 
-        .modal h2 { margin-bottom: 15px; font-size: 20px; }
-
-        .form-group { margin-bottom: 15px; }
-        .form-group label { display: block; font-size: 14px; margin-bottom: 5px; color: var(--text-muted); }
-        .form-group input {
-            width: 100%;
-            padding: 10px;
-            border: 1px solid var(--border);
-            border-radius: 8px;
-            font-size: 16px;
+        .btn-primary:睫over {
+            background-color: var(--primary-hover);
         }
 
-        .modal-actions {
+        .btn-warning {
+            background-color: var(--warning);
+            color: white;
+        }
+
+        .btn-action {
+            width: auto;
+            min-width: 44px;
+            height: 44px;
+            padding: 0 12px;
+            border-radius: 6px;
+            font-size: 0.85rem;
+        }
+
+        .btn-edit {
+            background-color: var(--border);
+            color: var(--text-main);
+        }
+
+        .btn-delete {
+            background-color: var(--danger);
+            color: white;
+        }
+
+        .btn-delete:hover {
+            background-color: var(--danger-hover);
+        }
+
+        .list-title {
+            font-size: 1.1rem;
+            font-weight: 700;
+            margin-bottom: 12px;
+            color: var(--text-muted);
+        }
+
+        .activity-item {
             display: flex;
-            gap: 10px;
-            margin-top: 20px;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 0;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .activity-item:last-child {
+            border-bottom: none;
+        }
+
+        .activity-info {
+            flex: 1;
+            padding-right: 12px;
+        }
+
+        .activity-name {
+            font-weight: 600;
+            font-size: 1.05rem;
+            margin-bottom: 2px;
+            word-break: break-word;
+        }
+
+        .activity-meta {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+        }
+
+        .activity-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .empty-state {
+            text-align: center;
+            color: var(--text-muted);
+            padding: 24px 0;
+            font-style: italic;
         }
     </style>
 </head>
 <body>
 
-    <div class="dashboard">
-        <h1>📦 Mi Inventario</h1>
-        <div class="stats-grid">
-            <div class="stat-box full-width">
-                <span>Ganancia Neta Recibida</span>
-                <strong id="dash-ganancia">$0.00</strong>
-            </div>
-            <div class="stat-box">
-                <span>Cobrado (Caja)</span>
-                <strong id="dash-cobrado">$0.00</strong>
-            </div>
-            <div class="stat-box">
-                <span>Pendiente (Por cobrar)</span>
-                <strong id="dash-pendiente">$0.00</strong>
-            </div>
-            <div class="stat-box">
-                <span>Total Invertido</span>
-                <strong id="dash-invertido">$0.00</strong>
-            </div>
-            <div class="stat-box">
-                <span>Pérdida por Daños</span>
-                <strong id="dash-perdida" style="color: #fca5a5;">$0.00</strong>
-            </div>
-            <div class="stat-box full-width" style="background: transparent; border: 1px solid rgba(255,255,255,0.3);">
-                <span>Inventario Restante (Unidades)</span>
-                <strong id="dash-unidades">0</strong>
-            </div>
-        </div>
-    </div>
+    <div class="container">
+        <header>
+            <h1>Control de Actividades</h1>
+            <div class="total-badge" id="totalAmount">Total: $0.00</div>
+        </header>
 
-    <div class="global-actions">
-        <button class="btn btn-primary" onclick="openModal()">+ Nuevo Producto</button>
-        <button class="btn btn-outline" style="width: auto;" onclick="resetData()">🗑️ Reiniciar</button>
-    </div>
-
-    <div id="product-list" class="product-list">
-        </div>
-
-    <div id="modal" class="modal-overlay hidden">
-        <div class="modal">
-            <h2 id="modal-title">Agregar Producto</h2>
-            <form id="product-form">
-                <input type="hidden" id="prod-id">
+        <div class="card">
+            <form id="activityForm">
+                <input type="hidden" id="editIndex" value="-1">
                 <div class="form-group">
-                    <label>Nombre del Producto</label>
-                    <input type="text" id="prod-name" required placeholder="Ej. Camiseta Negra">
+                    <label for="activityName">Descripción de la Actividad</label>
+                    <input type="text" id="activityName" placeholder="Ej. Limpieza de oficina, Desarrollo web..." required>
                 </div>
                 <div class="form-group">
-                    <label>Cantidad Disponible (Unidades)</label>
-                    <input type="number" id="prod-qty" required min="0" placeholder="Ej. 10">
+                    <label for="activityPrice">Monto / Pago ($)</label>
+                    <input type="number" id="activityPrice" step="0.01" placeholder="Ej. 45.50" required>
                 </div>
-                <div class="form-group">
-                    <label>Costo de Compra (Por unidad $)</label>
-                    <input type="number" id="prod-cost" required min="0" step="0.01" placeholder="Ej. 5.00">
-                </div>
-                <div class="form-group">
-                    <label>Precio de Venta (Por unidad $)</label>
-                    <input type="number" id="prod-price" required min="0" step="0.01" placeholder="Ej. 12.00">
-                </div>
-                <div class="modal-actions">
-                    <button type="button" class="btn btn-outline" onclick="closeModal()">Cancelar</button>
-                    <button type="submit" class="btn btn-primary">Guardar</button>
-                </div>
-                <button type="button" class="btn btn-danger" style="margin-top: 15px; display: none;" id="btn-delete" onclick="deleteProduct()">Eliminar Producto</button>
+                <button type="submit" id="submitBtn" class="btn btn-primary">Agregar Actividad</button>
             </form>
+        </div>
+
+        <div class="card">
+            <h2 class="list-title">Lista de Actividades</h2>
+            <div id="activitiesList">
+                </div>
         </div>
     </div>
 
     <script>
-        // --- 1. ESTADO Y ALMACENAMIENTO ---
-        let inventory = JSON.parse(localStorage.getItem('app_inventory')) || [];
+        let activities = JSON.parse(localStorage.getItem('activities')) || [];
+        const form = document.getElementById('activityForm');
+        const activityNameInput = document.getElementById('activityName');
+        const activityPriceInput = document.getElementById('activityPrice');
+        const editIndexInput = document.getElementById('editIndex');
+        const submitBtn = document.getElementById('submitBtn');
+        const activitiesList = document.getElementById('activitiesList');
+        const totalAmountDisplay = document.getElementById('totalAmount');
 
-        function saveData() {
-            localStorage.setItem('app_inventory', JSON.stringify(inventory));
-            render();
+        function saveAndRender() {
+            localStorage.setItem('activities', JSON.stringify(activities));
+            renderActivities();
         }
 
-        // --- 2. RENDERIZADO DE INTERFAZ ---
-        function render() {
-            renderDashboard();
-            renderProducts();
-        }
+        function renderActivities() {
+            activitiesList.innerHTML = '';
+            let total = 0;
 
-        function renderDashboard() {
-            let invertido = 0, cobrado = 0, pendiente = 0, perdida = 0, gananciaNeta = 0, unidadesRestantes = 0;
-
-            inventory.forEach(p => {
-                // Total de unidades que alguna vez existieron de este producto
-                let totalHistorico = p.quantity + p.soldPaid + p.soldUnpaid + p.damaged;
-                
-                invertido += totalHistorico * p.cost;
-                cobrado += p.soldPaid * p.price;
-                pendiente += p.soldUnpaid * p.price;
-                perdida += p.damaged * p.cost;
-                
-                // Ganancia real = Dinero que ya me pagaron - Costo de ESAS unidades específicas vendidas
-                gananciaNeta += p.soldPaid * (p.price - p.cost);
-                
-                unidadesRestantes += p.quantity;
-            });
-
-            document.getElementById('dash-ganancia').innerText = `$${gananciaNeta.toFixed(2)}`;
-            document.getElementById('dash-cobrado').innerText = `$${cobrado.toFixed(2)}`;
-            document.getElementById('dash-pendiente').innerText = `$${pendiente.toFixed(2)}`;
-            document.getElementById('dash-invertido').innerText = `$${invertido.toFixed(2)}`;
-            document.getElementById('dash-perdida').innerText = `$${perdida.toFixed(2)}`;
-            document.getElementById('dash-unidades').innerText = unidadesRestantes;
-        }
-
-        function renderProducts() {
-            const container = document.getElementById('product-list');
-            container.innerHTML = '';
-
-            if(inventory.length === 0) {
-                container.innerHTML = '<p style="text-align:center; color:gray; padding:20px;">No hay productos. Toca "+ Nuevo Producto" para empezar.</p>';
+            if (activities.length === 0) {
+                activitiesList.innerHTML = '<div class="empty-state">No hay actividades registradas.</div>';
+                totalAmountDisplay.textContent = 'Total: $0.00';
                 return;
             }
 
-            inventory.forEach(p => {
-                const isOutOfStock = p.quantity === 0;
-                const gananciaUnidad = p.price - p.cost;
+            activities.forEach((activity, index) => {
+                total += parseFloat(activity.price);
 
-                const card = document.createElement('div');
-                card.className = 'card';
-                card.innerHTML = `
-                    <div class="card-header">
-                        <h3>${p.name}</h3>
-                        <button class="edit-btn" onclick="openModal('${p.id}')">✏️</button>
+                const item = document.createElement('div');
+                item.className = 'activity-item';
+                item.innerHTML = `
+                    <div class="activity-info">
+                        <div class="activity-name">${activity.name}</div>
+                        <div class="activity-meta">$${parseFloat(activity.price).toFixed(2)}</div>
                     </div>
-                    
-                    <div class="card-details">
-                        <span>Stock Disponible:</span> <strong style="font-size: 16px; color: ${isOutOfStock ? 'red' : 'var(--text-main)'};">${p.quantity}</strong>
-                        <span>Precio de Venta:</span> <strong>$${p.price.toFixed(2)}</strong>
-                        <span>Costo Unitario:</span> <strong>$${p.cost.toFixed(2)}</strong>
-                        <span>Ganancia /u:</span> <strong class="highlight-profit">$${gananciaUnidad.toFixed(2)}</strong>
-                    </div>
-
-                    <div class="card-actions">
-                        <button class="btn btn-success btn-full" onclick="action('${p.id}', 'sell_paid')" ${isOutOfStock ? 'disabled' : ''}>
-                            💰 Vender (Pagado)
-                        </button>
-                        <button class="btn btn-warning" onclick="action('${p.id}', 'sell_unpaid')" ${isOutOfStock ? 'disabled' : ''}>
-                            ⏳ Vender (Fiado)
-                        </button>
-                        <button class="btn btn-outline" style="color:var(--danger); border-color:var(--danger);" onclick="action('${p.id}', 'damage')" ${isOutOfStock ? 'disabled' : ''}>
-                            🗑️ Dañado
-                        </button>
-                    </div>
-
-                    ${p.soldUnpaid > 0 ? `
-                        <button class="btn btn-primary" style="margin-top: 8px;" onclick="action('${p.id}', 'pay_debt')">
-                            ✅ Me pagaron 1 fiado (Pendientes: ${p.soldUnpaid})
-                        </button>
-                    ` : ''}
-
-                    <div class="mini-actions">
-                        <button class="btn btn-outline" onclick="action('${p.id}', 'add_stock')">➕ 1 Stock</button>
-                        <button class="btn btn-outline" onclick="action('${p.id}', 'remove_stock')" ${isOutOfStock ? 'disabled' : ''}>➖ 1 Stock</button>
+                    <div class="activity-actions">
+                        <button class="btn btn-action btn-edit" onclick="editActivity(${index})">Editar</button>
+                        <button class="btn btn-action btn-delete" onclick="deleteActivity(${index})">Borrar</button>
                     </div>
                 `;
-                container.appendChild(card);
+                activitiesList.appendChild(item);
             });
+
+            totalAmountDisplay.textContent = `Total: $${total.toFixed(2)}`;
         }
 
-        // --- 3. LÓGICA DE NEGOCIO (ACCIONES) ---
-        function action(id, type) {
-            const index = inventory.findIndex(p => p.id === id);
-            if (index === -1) return;
-            const p = inventory[index];
-
-            switch(type) {
-                case 'sell_paid':
-                    if(p.quantity > 0) { p.quantity--; p.soldPaid++; }
-                    break;
-                case 'sell_unpaid':
-                    if(p.quantity > 0) { p.quantity--; p.soldUnpaid++; }
-                    break;
-                case 'damage':
-                    if(p.quantity > 0) {
-                        if(confirm(`¿Marcar 1 unidad de "${p.name}" como dañada/perdida?`)) {
-                            p.quantity--; p.damaged++; 
-                        }
-                    }
-                    break;
-                case 'pay_debt':
-                    if(p.soldUnpaid > 0) { p.soldUnpaid--; p.soldPaid++; }
-                    break;
-                case 'add_stock':
-                    p.quantity++;
-                    break;
-                case 'remove_stock':
-                    if(p.quantity > 0) p.quantity--;
-                    break;
-            }
-            saveData();
-        }
-
-        // --- 4. MANEJO DE MODAL Y FORMULARIOS ---
-        const modal = document.getElementById('modal');
-        const form = document.getElementById('product-form');
-
-        function openModal(id = null) {
-            modal.classList.remove('hidden');
-            if(id) {
-                const p = inventory.find(i => i.id === id);
-                document.getElementById('modal-title').innerText = 'Editar Producto';
-                document.getElementById('prod-id').value = p.id;
-                document.getElementById('prod-name').value = p.name;
-                document.getElementById('prod-qty').value = p.quantity;
-                document.getElementById('prod-cost').value = p.cost;
-                document.getElementById('prod-price').value = p.price;
-                document.getElementById('btn-delete').style.display = 'block';
-            } else {
-                document.getElementById('modal-title').innerText = 'Agregar Producto';
-                form.reset();
-                document.getElementById('prod-id').value = '';
-                document.getElementById('btn-delete').style.display = 'none';
-            }
-        }
-
-        function closeModal() {
-            modal.classList.add('hidden');
-        }
-
-        form.addEventListener('submit', function(e) {
+        form.addEventListener('submit', (e) => {
             e.preventDefault();
-            const id = document.getElementById('prod-id').value;
-            const name = document.getElementById('prod-name').value;
-            const quantity = parseInt(document.getElementById('prod-qty').value);
-            const cost = parseFloat(document.getElementById('prod-cost').value);
-            const price = parseFloat(document.getElementById('prod-price').value);
+            
+            const name = activityNameInput.value.trim();
+            const price = parseFloat(activityPriceInput.value);
+            const editIndex = parseInt(editIndexInput.value);
 
-            if(id) {
-                // Editar
-                const index = inventory.findIndex(p => p.id === id);
-                inventory[index].name = name;
-                inventory[index].quantity = quantity;
-                inventory[index].cost = cost;
-                inventory[index].price = price;
-            } else {
-                // Nuevo
-                inventory.push({
-                    id: Date.now().toString(),
-                    name, quantity, cost, price,
-                    soldPaid: 0, soldUnpaid: 0, damaged: 0
-                });
+            if (name && !isNaN(price)) {
+                if (editIndex === -1) {
+                    activities.push({ name, price });
+                } else {
+                    activities[editIndex] = { name, price };
+                    editIndexInput.value = "-1";
+                    submitBtn.textContent = "Agregar Actividad";
+                    submitBtn.className = "btn btn-primary";
+                }
+                
+                activityNameInput.value = '';
+                activityPriceInput.value = '';
+                saveAndRender();
             }
-            closeModal();
-            saveData();
         });
 
-        function deleteProduct() {
-            const id = document.getElementById('prod-id').value;
-            if(confirm('¿Estás seguro de que deseas eliminar este producto por completo? Esto borrará también su historial de ventas.')) {
-                inventory = inventory.filter(p => p.id !== id);
-                closeModal();
-                saveData();
-            }
-        }
+        window.editActivity = function(index) {
+            activityNameInput.value = activities[index].name;
+            activityPriceInput.value = activities[index].price;
+            editIndexInput.value = index;
+            submitBtn.textContent = "Guardar Cambios";
+            submitBtn.className = "btn btn-warning";
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        };
 
-        function resetData() {
-            if(confirm('⚠️ PELIGRO: Esto borrará TODOS tus productos y el historial de ventas. ¿Estás absolutamente seguro?')) {
-                inventory = [];
-                saveData();
+        window.deleteActivity = function(index) {
+            if (confirm('¿Seguro que deseas eliminar esta actividad?')) {
+                activities.splice(index, 1);
+                if (editIndexInput.value == index) {
+                    editIndexInput.value = "-1";
+                    submitBtn.textContent = "Agregar Actividad";
+                    submitBtn.className = "btn btn-primary";
+                    activityNameInput.value = '';
+                    activityPriceInput.value = '';
+                }
+                saveAndRender();
             }
-        }
+        };
 
-        // --- 5. INICIALIZACIÓN ---
-        render();
+        renderActivities();
     </script>
 </body>
 </html>
