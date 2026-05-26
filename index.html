@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Control de Actividades por Cobrar</title>
+    <title>Control de Pagos de Personal</title>
     <style>
         :root {
             --bg-color: #f4f6f9;
@@ -14,7 +14,6 @@
             --primary-hover: #2b6cb0;
             --success: #38a169;
             --danger: #e53e3e;
-            --danger-hover: #c53030;
             --warning: #dd6b20;
             --border: #e2e8f0;
         }
@@ -23,13 +22,13 @@
             box-sizing: border-box;
             margin: 0;
             padding: 0;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
         }
 
         body {
             background-color: var(--bg-color);
             color: var(--text-main);
-            padding: 16px;
+            padding: 12px;
             display: flex;
             justify-content: center;
         }
@@ -37,31 +36,38 @@
         .container {
             width: 100%;
             max-width: 500px;
-            margin-top: 8px;
         }
 
         header {
-            margin-bottom: 20px;
+            margin-bottom: 16px;
             text-align: center;
         }
 
         h1 {
-            font-size: 1.5rem;
+            font-size: 1.4rem;
             color: var(--text-main);
-            margin-bottom: 4px;
+            margin-bottom: 8px;
         }
 
-        .total-badge {
-            background-color: var(--primary);
-            color: white;
-            padding: 8px 16px;
-            border-radius: 20px;
-            font-weight: bold;
-            display: inline-block;
-            margin-top: 8px;
-            font-size: 1.1rem;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        .summary-box {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            margin-bottom: 16px;
         }
+
+        .badge {
+            padding: 10px;
+            border-radius: 8px;
+            font-weight: bold;
+            text-align: center;
+            font-size: 0.9rem;
+            color: white;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+
+        .badge-danger { background-color: var(--danger); }
+        .badge-success { background-color: var(--success); }
 
         .card {
             background: var(--card-bg);
@@ -78,88 +84,67 @@
 
         label {
             display: block;
-            margin-bottom: 6px;
-            font-size: 0.9rem;
+            margin-bottom: 4px;
+            font-size: 0.85rem;
             font-weight: 600;
             color: var(--text-muted);
         }
 
-        input[type="text"], input[type="number"] {
+        input {
             width: 100%;
-            padding: 12px;
+            padding: 10px;
             border: 2px solid var(--border);
             border-radius: 8px;
-            font-size: 1rem;
+            font-size: 0.95rem;
             outline: none;
             transition: border-color 0.2s;
             -webkit-appearance: none;
         }
 
-        input[type="text"]:focus, input[type="number"]:focus {
+        input:focus {
             border-color: var(--primary);
         }
 
         .btn {
             width: 100%;
-            padding: 14px;
+            padding: 12px;
             border: none;
             border-radius: 8px;
             font-size: 1rem;
             font-weight: bold;
             cursor: pointer;
-            transition: background-color 0.2s;
+            min-height: 48px;
             display: flex;
             justify-content: center;
             align-items: center;
             gap: 8px;
-            min-height: 48px; /* Accesibilidad táctil móvil */
         }
 
-        .btn-primary {
-            background-color: var(--primary);
-            color: white;
-        }
-
-        .btn-primary:睫over {
-            background-color: var(--primary-hover);
-        }
-
-        .btn-warning {
-            background-color: var(--warning);
-            color: white;
-        }
+        .btn-primary { background-color: var(--primary); color: white; }
+        .btn-warning { background-color: var(--warning); color: white; }
 
         .btn-action {
             width: auto;
             min-width: 44px;
-            height: 44px;
-            padding: 0 12px;
+            height: 38px;
+            padding: 0 10px;
             border-radius: 6px;
-            font-size: 0.85rem;
+            font-size: 0.8rem;
         }
 
-        .btn-edit {
-            background-color: var(--border);
-            color: var(--text-main);
-        }
-
-        .btn-delete {
-            background-color: var(--danger);
-            color: white;
-        }
-
-        .btn-delete:hover {
-            background-color: var(--danger-hover);
-        }
+        .btn-edit { background-color: var(--border); color: var(--text-main); }
+        .btn-delete { background-color: var(--danger); color: white; }
 
         .list-title {
-            font-size: 1.1rem;
+            font-size: 1rem;
             font-weight: 700;
             margin-bottom: 12px;
             color: var(--text-muted);
+            border-bottom: 2px solid var(--border);
+            padding-bottom: 4px;
         }
 
-        .activity-item {
+        .item-row {
             display: flex;
             justify-content: space-between;
             align-items: center;
@@ -167,37 +152,47 @@
             border-bottom: 1px solid var(--border);
         }
 
-        .activity-item:last-child {
+        .item-row:last-child {
             border-bottom: none;
         }
 
-        .activity-info {
+        .item-info {
             flex: 1;
-            padding-right: 12px;
+            padding-right: 8px;
         }
 
-        .activity-name {
+        .info-name {
             font-weight: 600;
-            font-size: 1.05rem;
-            margin-bottom: 2px;
+            font-size: 1rem;
             word-break: break-word;
         }
 
-        .activity-meta {
+        .info-activity {
             font-size: 0.85rem;
             color: var(--text-muted);
+            margin-bottom: 2px;
         }
 
-        .activity-actions {
+        .info-values {
+            font-size: 0.85rem;
+            margin-top: 2px;
+        }
+
+        .val-total { color: var(--text-main); font-weight: 500; }
+        .val-paid { color: var(--success); font-weight: 500; }
+        .val-owed { color: var(--danger); font-weight: 600; }
+
+        .item-actions {
             display: flex;
-            gap: 8px;
+            gap: 6px;
         }
 
         .empty-state {
             text-align: center;
             color: var(--text-muted);
-            padding: 24px 0;
+            padding: 16px 0;
             font-style: italic;
+            font-size: 0.9rem;
         }
     </style>
 </head>
@@ -205,125 +200,185 @@
 
     <div class="container">
         <header>
-            <h1>Control de Actividades</h1>
-            <div class="total-badge" id="totalAmount">Total: $0.00</div>
+            <h1>Control de Pagos</h1>
+            <div class="summary-box">
+                <div class="badge badge-danger" id="totalOwed">Por Cobrar: $0.00</div>
+                <div class="badge badge-success" id="totalCollected">Cobrado: $0.00</div>
+            </div>
         </header>
 
         <div class="card">
-            <form id="activityForm">
+            <form id="paymentForm">
                 <input type="hidden" id="editIndex" value="-1">
                 <div class="form-group">
-                    <label for="activityName">Descripción de la Actividad</label>
-                    <input type="text" id="activityName" placeholder="Ej. Limpieza de oficina, Desarrollo web..." required>
+                    <label for="personName">Nombre de la Persona</label>
+                    <input type="text" id="personName" placeholder="Ej. Juan Pérez" required>
                 </div>
                 <div class="form-group">
-                    <label for="activityPrice">Monto / Pago ($)</label>
-                    <input type="number" id="activityPrice" step="0.01" placeholder="Ej. 45.50" required>
+                    <label for="activityName">Actividad / Tarea</label>
+                    <input type="text" id="activityName" placeholder="Ej. Mantenimiento de servidores" required>
                 </div>
-                <button type="submit" id="submitBtn" class="btn btn-primary">Agregar Actividad</button>
+                <div class="form-group">
+                    <label for="totalValue">Valor Total de la Actividad ($)</label>
+                    <input type="number" id="totalValue" step="0.01" placeholder="Ej. 100.00" required>
+                </div>
+                <div class="form-group">
+                    <label for="paidValue">Valor Pagado hasta ahora ($)</label>
+                    <input type="number" id="paidValue" step="0.01" placeholder="Ej. 40.00" required>
+                </div>
+                <button type="submit" id="submitBtn" class="btn btn-primary">Agregar Registro</button>
             </form>
         </div>
 
         <div class="card">
-            <h2 class="list-title">Lista de Actividades</h2>
-            <div id="activitiesList">
-                </div>
+            <h2 class="list-title">Pendientes de Pago</h2>
+            <div id="pendingList"></div>
+        </div>
+
+        <div class="card">
+            <h2 class="list-title">Completados / Pagados</h2>
+            <div id="completedList"></div>
         </div>
     </div>
 
     <script>
-        let activities = JSON.parse(localStorage.getItem('activities')) || [];
-        const form = document.getElementById('activityForm');
+        let records = JSON.parse(localStorage.getItem('payment_records')) || [];
+        
+        const form = document.getElementById('paymentForm');
+        const personNameInput = document.getElementById('personName');
         const activityNameInput = document.getElementById('activityName');
-        const activityPriceInput = document.getElementById('activityPrice');
+        const totalValueInput = document.getElementById('totalValue');
+        const paidValueInput = document.getElementById('paidValue');
         const editIndexInput = document.getElementById('editIndex');
         const submitBtn = document.getElementById('submitBtn');
-        const activitiesList = document.getElementById('activitiesList');
-        const totalAmountDisplay = document.getElementById('totalAmount');
+        
+        const pendingList = document.getElementById('pendingList');
+        const completedList = document.getElementById('completedList');
+        const totalOwedDisplay = document.getElementById('totalOwed');
+        const totalCollectedDisplay = document.getElementById('totalCollected');
 
         function saveAndRender() {
-            localStorage.setItem('activities', JSON.stringify(activities));
-            renderActivities();
+            localStorage.setItem('payment_records', JSON.stringify(records));
+            render();
         }
 
-        function renderActivities() {
-            activitiesList.innerHTML = '';
-            let total = 0;
+        function render() {
+            pendingList.innerHTML = '';
+            completedList.innerHTML = '';
+            
+            let globalOwed = 0;
+            let globalCollected = 0;
+            let hasPending = false;
+            let hasCompleted = false;
 
-            if (activities.length === 0) {
-                activitiesList.innerHTML = '<div class="empty-state">No hay actividades registradas.</div>';
-                totalAmountDisplay.textContent = 'Total: $0.00';
-                return;
-            }
+            records.forEach((record, index) => {
+                const total = parseFloat(record.total);
+                const paid = parseFloat(record.paid);
+                const owed = total - paid;
 
-            activities.forEach((activity, index) => {
-                total += parseFloat(activity.price);
+                globalCollected += paid;
+                if (owed > 0) globalOwed += owed;
 
-                const item = document.createElement('div');
-                item.className = 'activity-item';
-                item.innerHTML = `
-                    <div class="activity-info">
-                        <div class="activity-name">${activity.name}</div>
-                        <div class="activity-meta">$${parseFloat(activity.price).toFixed(2)}</div>
-                    </div>
-                    <div class="activity-actions">
-                        <button class="btn btn-action btn-edit" onclick="editActivity(${index})">Editar</button>
-                        <button class="btn btn-action btn-delete" onclick="deleteActivity(${index})">Borrar</button>
-                    </div>
-                `;
-                activitiesList.appendChild(item);
+                const row = document.createElement('div');
+                row.className = 'item-row';
+                
+                if (owed > 0) {
+                    hasPending = true;
+                    row.innerHTML = `
+                        <div class="item-info">
+                            <div class="info-name">${record.person}</div>
+                            <div class="info-activity">${record.activity}</div>
+                            <div class="info-values">
+                                <span class="val-total">Total: $${total.toFixed(2)}</span> | 
+                                <span class="val-paid">Pagó: $${paid.toFixed(2)}</span> | 
+                                <span class="val-owed">Debe: $${owed.toFixed(2)}</span>
+                            </div>
+                        </div>
+                        <div class="item-actions">
+                            <button class="btn btn-action btn-edit" onclick="editRecord(${index})">Editar</button>
+                            <button class="btn btn-action btn-delete" onclick="deleteRecord(${index})">Borrar</button>
+                        </div>
+                    `;
+                    pendingList.appendChild(row);
+                } else {
+                    hasCompleted = true;
+                    row.innerHTML = `
+                        <div class="item-info">
+                            <div class="info-name">${record.person}</div>
+                            <div class="info-activity">${record.activity}</div>
+                            <div class="info-values">
+                                <span class="val-paid">Total Pagado: $${total.toFixed(2)}</span>
+                            </div>
+                        </div>
+                        <div class="item-actions">
+                            <button class="btn btn-action btn-edit" onclick="editRecord(${index})">Editar</button>
+                            <button class="btn btn-action btn-delete" onclick="deleteRecord(${index})">Borrar</button>
+                        </div>
+                    `;
+                    completedList.appendChild(row);
+                }
             });
 
-            totalAmountDisplay.textContent = `Total: $${total.toFixed(2)}`;
+            if (!hasPending) pendingList.innerHTML = '<div class="empty-state">No hay saldos pendientes.</div>';
+            if (!hasCompleted) completedList.innerHTML = '<div class="empty-state">No hay registros pagados por completo.</div>';
+
+            totalOwedDisplay.textContent = `Por Cobrar: $${globalOwed.toFixed(2)}`;
+            totalCollectedDisplay.textContent = `Cobrado: $${globalCollected.toFixed(2)}`;
         }
 
         form.addEventListener('submit', (e) => {
             e.preventDefault();
             
-            const name = activityNameInput.value.trim();
-            const price = parseFloat(activityPriceInput.value);
+            const person = personNameInput.value.trim();
+            const activity = activityNameInput.value.trim();
+            const total = parseFloat(totalValueInput.value);
+            const paid = parseFloat(paidValueInput.value);
             const editIndex = parseInt(editIndexInput.value);
 
-            if (name && !isNaN(price)) {
+            if (person && activity && !isNaN(total) && !isNaN(paid)) {
+                const data = { person, activity, total, paid };
+
                 if (editIndex === -1) {
-                    activities.push({ name, price });
+                    records.push(data);
                 } else {
-                    activities[editIndex] = { name, price };
+                    records[editIndex] = data;
                     editIndexInput.value = "-1";
-                    submitBtn.textContent = "Agregar Actividad";
+                    submitBtn.textContent = "Agregar Registro";
                     submitBtn.className = "btn btn-primary";
                 }
                 
-                activityNameInput.value = '';
-                activityPriceInput.value = '';
+                form.reset();
                 saveAndRender();
             }
         });
 
-        window.editActivity = function(index) {
-            activityNameInput.value = activities[index].name;
-            activityPriceInput.value = activities[index].price;
+        window.editRecord = function(index) {
+            const record = records[index];
+            personNameInput.value = record.person;
+            activityNameInput.value = record.activity;
+            totalValueInput.value = record.total;
+            paidValueInput.value = record.paid;
+            
             editIndexInput.value = index;
             submitBtn.textContent = "Guardar Cambios";
             submitBtn.className = "btn btn-warning";
             window.scrollTo({ top: 0, behavior: 'smooth' });
         };
 
-        window.deleteActivity = function(index) {
-            if (confirm('¿Seguro que deseas eliminar esta actividad?')) {
-                activities.splice(index, 1);
+        window.deleteRecord = function(index) {
+            if (confirm('¿Seguro que deseas eliminar este registro?')) {
+                records.splice(index, 1);
                 if (editIndexInput.value == index) {
                     editIndexInput.value = "-1";
-                    submitBtn.textContent = "Agregar Actividad";
+                    submitBtn.textContent = "Agregar Registro";
                     submitBtn.className = "btn btn-primary";
-                    activityNameInput.value = '';
-                    activityPriceInput.value = '';
+                    form.reset();
                 }
                 saveAndRender();
             }
         };
 
-        renderActivities();
+        render();
     </script>
 </body>
 </html>
