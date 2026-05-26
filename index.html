@@ -215,8 +215,8 @@
                     <input type="text" id="personName" placeholder="Ej. Juan Pérez" required>
                 </div>
                 <div class="form-group">
-                    <label for="activityName">Actividad / Tarea</label>
-                    <input type="text" id="activityName" placeholder="Ej. Mantenimiento de servidores" required>
+                    <label for="activityName">Actividad / Tarea (Opcional)</label>
+                    <input type="text" id="activityName" placeholder="Ej. Mantenimiento">
                 </div>
                 <div class="form-group">
                     <label for="totalValue">Valor Total de la Actividad ($)</label>
@@ -224,7 +224,7 @@
                 </div>
                 <div class="form-group">
                     <label for="paidValue">Valor Pagado hasta ahora ($)</label>
-                    <input type="number" id="paidValue" step="0.01" placeholder="Ej. 40.00" required>
+                    <input type="number" id="paidValue" step="0.01" placeholder="0.00">
                 </div>
                 <button type="submit" id="submitBtn" class="btn btn-primary">Agregar Registro</button>
             </form>
@@ -282,12 +282,14 @@
                 const row = document.createElement('div');
                 row.className = 'item-row';
                 
+                const activityHTML = record.activity ? `<div class="info-activity">${record.activity}</div>` : '';
+
                 if (owed > 0) {
                     hasPending = true;
                     row.innerHTML = `
                         <div class="item-info">
                             <div class="info-name">${record.person}</div>
-                            <div class="info-activity">${record.activity}</div>
+                            ${activityHTML}
                             <div class="info-values">
                                 <span class="val-total">Total: $${total.toFixed(2)}</span> | 
                                 <span class="val-paid">Pagó: $${paid.toFixed(2)}</span> | 
@@ -305,7 +307,7 @@
                     row.innerHTML = `
                         <div class="item-info">
                             <div class="info-name">${record.person}</div>
-                            <div class="info-activity">${record.activity}</div>
+                            ${activityHTML}
                             <div class="info-values">
                                 <span class="val-paid">Total Pagado: $${total.toFixed(2)}</span>
                             </div>
@@ -330,12 +332,12 @@
             e.preventDefault();
             
             const person = personNameInput.value.trim();
-            const activity = activityNameInput.value.trim();
+            const activity = activityNameInput.value.trim(); 
             const total = parseFloat(totalValueInput.value);
-            const paid = parseFloat(paidValueInput.value);
+            const paid = paidValueInput.value.trim() === "" ? 0 : parseFloat(paidValueInput.value);
             const editIndex = parseInt(editIndexInput.value);
 
-            if (person && activity && !isNaN(total) && !isNaN(paid)) {
+            if (person && !isNaN(total)) {
                 const data = { person, activity, total, paid };
 
                 if (editIndex === -1) {
